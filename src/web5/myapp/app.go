@@ -44,7 +44,7 @@ func getUserInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content_Type", "application/json")
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	data, _ := json.Marshal(user)
 	fmt.Fprint(w, string(data))
@@ -71,6 +71,60 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func deleteUserInfoHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r) // id를 알아서 파싱함
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
+		return
+	}
+
+	_, ok := userMap[id] // map에 ID에 해당하는 것이 있는지
+	if !ok {             // map에 해당하는 ID가 없으면
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "No User ID:", id)
+		return
+	}
+
+	delete(userMap, id)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "Deleted User ID:", id)
+}
+
+func updateUserHandler(w http.ResponseWriter, r *http.Request) {
+	updateUser := new(User)
+	err := json.NewDecoder(r.Body).Decode(updateUser)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
+		return
+	}
+
+	user, ok := userMap[updateUser.ID]
+	if !ok {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "No User ID:", user.ID)
+		return
+	}
+
+	if updateUser.FirstName != "" {
+		user.FirstName = updateUser.FirstName
+	}
+	if updateUser.LastName != "" {
+		user.LastName = updateUser.LastName
+	}
+	if updateUser.Email != "" {
+		user.Email = updateUser.Email
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	data, _ := json.Marshal(user)
+	fmt.Fprint(w, string(data))
+
+}
+
 func NewHandler() http.Handler {
 	userMap = make(map[int]*User)
 	lastID = 0
@@ -80,6 +134,8 @@ func NewHandler() http.Handler {
 	mux.HandleFunc("/", indexHandler)
 	mux.HandleFunc("/users", usersHandler).Methods("GET")
 	mux.HandleFunc("/users", createUserHandler).Methods("POST")
-	mux.HandleFunc("/users/{id:[0-9]+}", getUserInfoHandler)
+	mux.HandleFunc("/users/{id:[0-9]+}", getUserInfoHandler).Methods("GET")
+	mux.HandleFunc("/users/{id:[0-9]+}", deleteUserInfoHandler).Methods("DELETE")
+	mux.HandleFunc("/users", updateUserHandler).Methods("PUT")
 	return mux
 }
